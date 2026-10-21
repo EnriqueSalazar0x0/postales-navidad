@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Postales de Navidad · Sangregorio Construcción</title>
+<style>
+:root{--bg:#f4efe6;--card:#fff;--ink:#222;--mute:#6b625c;--red:#c1272d;--green:#1f6b4a;--yellow:#f5b800;--dark:#2a2a2a;--line:#e2d8c8}
+@media (prefers-color-scheme:dark){:root{--bg:#181716;--card:#242220;--ink:#f3ece4;--mute:#a89f97;--red:#e5545c;--green:#5cc592;--line:#3a3531}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;line-height:1.45}
+header{background:var(--dark);color:#fff;text-align:center;padding:22px 16px 26px;position:relative;
+ background-image:radial-gradient(circle,rgba(255,255,255,.55) 1.5px,transparent 2px),radial-gradient(circle,rgba(255,255,255,.3) 1px,transparent 1.5px);background-size:46px 46px,29px 29px;background-position:0 0,14px 18px}
+header:after{content:"";position:absolute;left:0;right:0;bottom:0;height:12px;background:repeating-linear-gradient(-45deg,var(--yellow) 0 14px,#222 14px 28px)}
+header .co{display:inline-block;background:var(--yellow);color:#222;font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-size:.8rem;padding:4px 12px;border-radius:4px;margin-bottom:8px}
+header h1{margin:0;font-size:1.9rem}header p{margin:6px 0 0;color:#e8dfd3}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}.sub{color:var(--mute)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+button,.btn{background:var(--yellow);color:#222;font-weight:700;border:0;border-radius:8px;padding:10px 16px;font-size:1rem;cursor:pointer}
+button.alt{background:var(--card);color:var(--ink);border:2px solid var(--line);font-weight:600}
+button.on{background:var(--dark);color:var(--yellow);border-color:var(--yellow)}
+button.vote{background:var(--red);color:#fff;border:0}button.vote.done{background:var(--green)}button:disabled{opacity:.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-top:5px solid var(--yellow);border-radius:10px;overflow:hidden}
+.card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}.card.sel{border-top-color:var(--green);box-shadow:0 0 0 3px var(--green)}
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;gap:8px}
+.note{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--red);border-radius:8px;padding:12px 14px;margin-bottom:14px}
+.tag{font-size:.85rem;color:var(--mute)}.win{color:var(--green);font-weight:800}
+input[type=file]{display:none}input[type=text],input[type=password]{padding:10px;border-radius:8px;border:2px solid var(--line);font-size:1rem;background:var(--card);color:var(--ink)}
+a.org{color:var(--mute);font-size:.8rem;cursor:pointer;text-decoration:underline}
+</style></head><body><header><span class="co">🏗️ Sangregorio Construcción</span><h1>🎄 Postales de Navidad</h1><p>Obra navideña: vota las mejores postales de la plantilla ⛑️</p></header>
+<main>
+<div id="msg" class="note" hidden></div><div id="app"></div>
+<p><a class="org" id="orgl">Soy organizador</a></p>
+</main>
+<script>
+// ====== CONFIGURACION: pega aqui los dos datos de Supabase (ver LEEME) ======
+var SUPABASE_URL="PEGA_AQUI_TU_PROJECT_URL";
+var SUPABASE_KEY="PEGA_AQUI_TU_CLAVE_ANON_O_PUBLISHABLE";
+// ===========================================================================
+var CATS={adultos:"Adultos",ninos:"Niños"},MAXV=5,POLL=20000;
+var $=function(i){return document.getElementById(i)};
+var ls=function(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return window["_"+k]=v===undefined?window["_"+k]:v}};
+var device=ls("pn_dev")||(function(){var d=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now());ls("pn_dev",d);return d})();
+var code=ls("pn_code")||"",admin="",photos=[],st={show:false,admin:false,total:0,tally:{}},cat="adultos",busy=false,ok=false;
+function say(t){var m=$("msg");m.textContent=t||"";m.hidden=!t}
+async function rpc(fn,args){
+  var h={"Content-Type":"application/json",apikey:SUPABASE_KEY};
+  if(SUPABASE_KEY.indexOf("eyJ")===0)h.Authorization="Bearer "+SUPABASE_KEY;
+  var r=await fetch(SUPABASE_URL+"/rest/v1/rpc/"+fn,{method:"POST",headers:h,body:JSON.stringify(args)});
+  var t=await r.text(),j;try{j=JSON.parse(t)}catch(e){j=null}
+  if(!r.ok)throw new Error((j&&j.message)||"error");return j}
+async function load(){
+  try{photos=await rpc("list_photos",{p_code:code,p_device:device});st=await rpc("get_state",{p_code:code,p_admin:admin});ok=true;say("")}
+  catch(e){ok=false;if(String(e.message).indexOf("codigo")>=0){code="";ls("pn_code","")}else say("No se pudo conectar. Reintenta en unos segundos.")}
+  render()}
+function shrink(f){return new Promise(function(res,rej){var im=new Image(),u=URL.createObjectURL(f);
+  im.onload=function(){var k=Math.min(1,1000/Math.max(im.width,im.height)),c=document.createElement("canvas");
+  c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+  URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",.72))};im.onerror=rej;im.src=u})}
+async function up(fs){if(!fs||!fs.length||busy)return;busy=true;render();var n=0,m="";
+  try{for(var i=0;i<fs.length;i++){say("Subiendo postal "+(i+1)+" de "+fs.length+"…");await rpc("add_photo",{p_code:code,p_admin:admin,p_cat:cat,p_img:await shrink(fs[i])});n++}m="¡"+n+" postal(es) subida(s) a "+CATS[cat]+"!"}
+  catch(e){m="No se pudo subir (¿clave de organizador correcta?)."}
+  busy=false;await load();say(m)}
+async function tv(id){if(busy)return;busy=true;
+  try{await rpc("toggle_vote",{p_code:code,p_device:device,p_photo:id});await load();say("")}
+  catch(e){say(e.message.indexOf("sin_votos")>=0?"Ya has usado tus "+MAXV+" votos en esta categoría. Quita uno para cambiarlo.":"No se pudo registrar el voto.")}busy=false;render()}
+async function setShow(v){if(!confirm(v?"¿Mostrar los votos a todos? La votación se cerrará.":"¿Ocultar los votos y reabrir la votación?"))return;
+  try{await rpc("set_show",{p_code:code,p_admin:admin,p_show:v});await load()}catch(e){say("No se pudo cambiar.")}}
+async function del(id){if(!confirm("¿Eliminar esta postal?"))return;try{await rpc("delete_photo",{p_code:code,p_admin:admin,p_id:id});await load()}catch(e){say("No se pudo eliminar.")}}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
+function render(){var a=$("app");a.innerHTML="";
+  if(!code||!ok&&!photos.length&&!code){
+    var n=el("div","note");n.appendChild(el("p","","Introduce el código de acceso que te ha dado la empresa:"));
+    var i=el("input");i.type="text";var b=el("button","","Entrar");b.style.marginLeft="8px";
+    b.onclick=function(){code=i.value.trim();ls("pn_code",code);load()};n.appendChild(i);n.appendChild(b);a.appendChild(n);return}
+  var tabs=el("div","bar");Object.keys(CATS).forEach(function(k){var b=el("button","alt"+(k===cat?" on":""),(k==="adultos"?"👷 ":"🧒 ")+CATS[k]);b.onclick=function(){cat=k;render()};tabs.appendChild(b)});a.appendChild(tabs);
+  var bar=el("div","bar");
+  if(st.admin&&!st.show){var l=el("label","btn",busy?"Subiendo…":"📸 Subir postales ("+CATS[cat]+")");var f=el("input");f.type="file";f.accept="image/*";f.multiple=true;f.onchange=function(){up(f.files)};l.appendChild(f);bar.appendChild(l)}
+  if(st.admin){var b=el("button","alt",st.show?"🙈 Ocultar votos (reabrir votación)":"👁 Mostrar votos ("+st.total+" emitidos)");b.onclick=function(){setShow(!st.show)};bar.appendChild(b)}
+  a.appendChild(bar);
+  var list=photos.filter(function(p){return p.cat===cat}),used=list.filter(function(p){return p.voted}).length;
+  var n2=el("div","note",st.show?"La votación ha terminado. Resultados de "+CATS[cat]+".":"Tienes "+MAXV+" votos por categoría. Te quedan "+(MAXV-used)+" en "+CATS[cat]+". No puedes votar tu propia postal. Los resultados se verán al final.");a.appendChild(n2);
+  if(st.show)list.sort(function(x,y){return (st.tally[y.id]||0)-(st.tally[x.id]||0)});
+  var max=0;if(st.show)list.forEach(function(p){max=Math.max(max,st.tally[p.id]||0)});
+  var g=el("div","grid");if(!list.length)a.appendChild(el("p","sub",st.admin?"Aún no hay postales. Usa el botón para subirlas.":"Aún no hay postales en esta categoría. ¡Enseguida empieza la votación!"));
+  list.forEach(function(p){var c=el("div","card"+(p.voted?" sel":""));var im=el("img");im.src=p.img;im.alt="Postal";c.appendChild(im);
+    var r=el("div","row"),t=el("span","tag",p.mine?"Tu postal":"");
+    if(st.show){var v=st.tally[p.id]||0;t=el("span",v===max&&max>0?"win":"tag",(v===max&&max>0?"🏆 Ganadora · ":"")+v+(v===1?" voto":" votos"))}
+    r.appendChild(t);
+    if(!st.show&&!p.mine){var vb=el("button","vote"+(p.voted?" done":""),p.voted?"✓ Votada":"🎁 Votar");vb.onclick=function(){tv(p.id)};r.appendChild(vb)}
+    if(st.admin){var d=el("button","alt","🗑");d.onclick=function(){del(p.id)};r.appendChild(d)}
+    c.appendChild(r);g.appendChild(c)});a.appendChild(g)}
+$("orgl").onclick=function(){var p=prompt("Clave de organizador:");if(p){admin=p;load()}};
+render();if(code)load();setInterval(function(){if(code&&!busy)load()},POLL);
+</script></body></html>
