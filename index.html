@@ -36,7 +36,7 @@ var SUPABASE_URL="https://cuwhrngvfvslxvhwqqox.supabase.co";
 var SUPABASE_KEY="sb_publishable_gpbHa5kouOfRR2QvPePr9w_DfiMxg_9";
 var CATS={adultos:"Adultos",ninos:"Niños"},MAXV=5,POLL=20000;
 var $=function(i){return document.getElementById(i)};
-var dni="",admin="",photos=[],st={show:false,admin:false,total:0,allowed:0,voted:{},tally:{}},cat="adultos",busy=false,sel={adultos:[],ninos:[]},txt="",open=false;
+var dni="",admin="",photos=[],st={show:false,admin:false,total:0,allowed:0,voted:{},tally:{}},cat="adultos",dnis=[],busy=false,sel={adultos:[],ninos:[]},txt="",open=false;
 function say(t){var m=$("msg");m.textContent=t||"";m.hidden=!t}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
 async function rpc(fn,args){
@@ -46,7 +46,7 @@ async function rpc(fn,args){
   var t=await r.text(),j;try{j=JSON.parse(t)}catch(e){j=null}
   if(!r.ok)throw new Error((j&&(j.message||j.hint))||("HTTP "+r.status+" "+t.slice(0,120)));return j}
 async function load(){
-  try{var a={p_dni:dni,p_admin:admin};photos=await rpc("list_photos",a);st=await rpc("get_state",a);
+  try{var a={p_dni:dni,p_admin:admin};photos=await rpc("list_photos",a);st=await rpc("get_state",a);dnis=st.admin?await rpc("list_dnis",{p_admin:admin}):[];
     if(admin&&!st.admin){admin="";say("Clave de organizador incorrecta.")}else say("")}
   catch(e){var m=String(e.message);
     if(m.indexOf("dni_no")>=0){photos=[];if(admin){admin="";say("Clave de organizador incorrecta.")}else{dni="";say("Ese DNI no está autorizado. Revísalo o consulta con el organizador.")}}
@@ -83,10 +83,16 @@ function render(){var a=$("app");a.innerHTML="";
     var sb=el("button","alt",st.show?"🙈 Ocultar votos (reabrir votación)":"👁 Mostrar votos");sb.onclick=function(){adm("set_show",{p_show:!st.show},"",st.show?"¿Ocultar los votos y reabrir la votación?":"¿Mostrar los votos a todos? La votación se cerrará.")};bar.appendChild(sb);
     if(st.show){var cb=el("button","alt","⬇ Guardar resultados (Excel/CSV)");cb.onclick=csv;bar.appendChild(cb)}
     d.appendChild(bar);
-    d.appendChild(el("p","tag","Lista de DNI autorizados: pega uno por línea (o separados por comas). Se guardan cifrados."));
+    d.appendChild(el("p","tag","Lista de DNI autorizados: pega uno por línea (o separados por comas). Solo tú puedes verlos desde este panel."));
     var t=el("textarea");t.value=txt;t.placeholder="12345678A\n87654321B";t.oninput=function(){txt=t.value};d.appendChild(t);
     var lb=el("button","alt","Cargar DNI");lb.onclick=function(){adm("load_dnis",{p_list:txt},function(r){txt="";return"Lista cargada: "+r+" DNI autorizados."})};d.appendChild(lb);
     var rb=el("button","alt","Borrar todos los votos");rb.style.marginLeft="8px";rb.onclick=function(){adm("reset_votes",{},"Votos borrados y votación reabierta.","¿Borrar TODOS los votos y reabrir la votación? No se puede deshacer.")};d.appendChild(rb);
+    d.appendChild(el("p","tag","DNI autorizados ("+dnis.length+"): última entrada y si ya ha votado. Nunca se ve a qué postales ha votado."));
+    var bx=el("div");bx.style.cssText="max-height:280px;overflow:auto;margin-top:6px";
+    dnis.forEach(function(r){var row=el("div","row");row.style.borderBottom="1px solid var(--line)";
+      var tx=el("span","",r.dni+" · "+(r.last_seen?new Date(r.last_seen).toLocaleString("es-ES"):"sin entrar")+" · Adultos "+(r.adultos?"✓":"–")+" · Niños "+(r.ninos?"✓":"–"));tx.style.fontSize=".85rem";
+      var x=el("button","alt","🗑");x.onclick=function(){adm("delete_dni",{p_dni:r.dni},"DNI eliminado.","¿Eliminar el DNI "+r.dni+"? Dejará de poder entrar.")};
+      row.appendChild(tx);row.appendChild(x);bx.appendChild(row)});d.appendChild(bx);
     a.appendChild(d)}
   var list=photos.filter(function(p){return p.cat===cat}),used=sel[cat].length,voted=st.voted&&st.voted[cat];
   var msg=st.show?"La votación ha terminado. Resultados de "+CATS[cat]+".":!dni?"Estás viendo la galería como organizador.":voted?"Ya has votado en esta categoría. Los resultados se verán al final.":"Elige hasta "+MAXV+" postales (llevas "+used+") y pulsa «Enviar mis votos». Una vez enviados no se pueden cambiar. Los resultados se verán al final.";
