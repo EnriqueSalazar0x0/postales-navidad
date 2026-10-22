@@ -58,7 +58,7 @@ function shrink(f){return new Promise(function(res,rej){var im=new Image(),u=URL
   URL.revokeObjectURL(u);res(c.toDataURL("image/jpeg",.72))};im.onerror=rej;im.src=u})}
 async function up(fs){if(!fs||!fs.length||busy)return;busy=true;render();var n=0,m="";
   try{for(var i=0;i<fs.length;i++){say("Subiendo postal "+(i+1)+" de "+fs.length+"…");await rpc("add_photo",{p_admin:admin,p_cat:cat,p_img:await shrink(fs[i])});n++}m="¡"+n+" postal(es) subida(s) a "+CATS[cat]+"!"}
-  catch(e){m="No se pudo subir la postal."}
+  catch(e){m="No se pudo subir la postal. Detalle técnico: "+e.message}
   busy=false;await load();say(m)}
 async function send(){var ids=sel[cat];if(!ids.length||busy)return;
   if(!confirm("Vas a enviar "+ids.length+" voto(s) en "+CATS[cat]+". Después no podrás cambiarlos. ¿Enviar?"))return;
@@ -66,7 +66,7 @@ async function send(){var ids=sel[cat];if(!ids.length||busy)return;
   try{await rpc("submit_ballot",{p_dni:dni,p_cat:cat,p_photos:ids});sel[cat]=[];m="¡Votos enviados en "+CATS[cat]+"! Gracias por participar."}
   catch(e){m=e.message.indexOf("ya_votaste")>=0?"Ya habías votado en esta categoría.":"No se pudieron enviar los votos."}
   busy=false;await load();say(m)}
-async function adm(fn,args,ok,q){if(q&&!confirm(q))return;try{var r=await rpc(fn,Object.assign({p_admin:admin},args||{}));await load();say(typeof ok==="function"?ok(r):ok)}catch(e){say("No se pudo completar la acción.")}}
+async function adm(fn,args,ok,q){if(q&&!confirm(q))return;try{var r=await rpc(fn,Object.assign({p_admin:admin},args||{}));await load();say(typeof ok==="function"?ok(r):ok)}catch(e){say("No se pudo completar la acción. Detalle técnico: "+e.message)}}
 function csv(){var r=["Categoria;Postal;Votos"];Object.keys(CATS).forEach(function(k){
   photos.filter(function(p){return p.cat===k}).map(function(p,i){return{n:i+1,v:st.tally[p.id]||0}}).sort(function(a,b){return b.v-a.v}).forEach(function(x){r.push(CATS[k]+";Postal "+x.n+";"+x.v)})});
   var a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+r.join("\n")],{type:"text/csv"}));a.download="resultados-postales.csv";a.click()}
