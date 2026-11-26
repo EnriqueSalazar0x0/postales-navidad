@@ -17,9 +17,9 @@ button,.btn{background:var(--yellow);color:#222;font-weight:700;border:0;border-
 button.alt{background:var(--card);color:var(--ink);border:2px solid var(--line);font-weight:600}
 button.on{background:var(--dark);color:var(--yellow);border-color:var(--yellow)}
 button.vote{background:var(--red);color:#fff;border:0}button.vote.done{background:var(--green)}button:disabled{opacity:.5}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;align-items:start}
 .card{background:var(--card);border:1px solid var(--line);border-top:5px solid var(--yellow);border-radius:10px;overflow:hidden}
-.card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block}.card.sel{border-top-color:var(--green);box-shadow:0 0 0 3px var(--green)}
+.card img{width:100%;height:auto;display:block;cursor:zoom-in;background:var(--bg)}.card.sel{border-top-color:var(--green);box-shadow:0 0 0 3px var(--green)}
 .row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;gap:8px}
 .note{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--red);border-radius:8px;padding:12px 14px;margin-bottom:14px}
 .tag{font-size:.85rem;color:var(--mute)}.win{color:var(--green);font-weight:800}
@@ -70,6 +70,8 @@ async function adm(fn,args,ok,q){if(q&&!confirm(q))return;try{var r=await rpc(fn
 function csv(){var r=["Categoria;Postal;Votos"];Object.keys(CATS).forEach(function(k){
   photos.filter(function(p){return p.cat===k}).map(function(p,i){return{n:i+1,v:st.tally[p.id]||0}}).sort(function(a,b){return b.v-a.v}).forEach(function(x){r.push(CATS[k]+";Postal "+x.n+";"+x.v)})});
   var a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+r.join("\n")],{type:"text/csv"}));a.download="resultados-postales.csv";a.click()}
+function zoom(src){var o=el("div");o.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:99;cursor:zoom-out;padding:12px";
+  var i=el("img");i.src=src;i.style.cssText="max-width:96vw;max-height:94vh;object-fit:contain;border-radius:6px";o.appendChild(i);o.onclick=function(){o.remove()};document.body.appendChild(o)}
 function render(){var a=$("app");a.innerHTML="";
   if(!dni&&!admin){var n=el("div","note");n.appendChild(el("p","","Escribe tu DNI para entrar (solo se usa para comprobar que eres de la plantilla y que votas una vez; nunca se asocia a tu voto):"));
     var i=el("input");i.type="text";i.autocomplete="off";i.placeholder="12345678A";var b=el("button","","Entrar");b.style.marginLeft="8px";
@@ -102,7 +104,7 @@ function render(){var a=$("app");a.innerHTML="";
   var max=0;if(st.show)list.forEach(function(p){max=Math.max(max,st.tally[p.id]||0)});
   if(!list.length)a.appendChild(el("p","sub",st.admin?"Aún no hay postales. Usa «Herramientas del organizador» para subirlas.":"Aún no hay postales en esta categoría. ¡Enseguida empieza la votación!"));
   var g=el("div","grid");
-  list.forEach(function(p){var on=sel[cat].indexOf(p.id)>=0,c=el("div","card"+(on?" sel":""));var im=el("img");im.src=p.img;im.alt="Postal";c.appendChild(im);
+  list.forEach(function(p){var on=sel[cat].indexOf(p.id)>=0,c=el("div","card"+(on?" sel":""));var im=el("img");im.src=p.img;im.alt="Postal";im.onclick=function(){zoom(p.img)};c.appendChild(im);
     var r=el("div","row"),t=el("span","tag","");
     if(st.show){var v=st.tally[p.id]||0;t=el("span",v===max&&max>0?"win":"tag",(v===max&&max>0?"🏆 Ganadora · ":"")+v+(v===1?" voto":" votos"))}
     r.appendChild(t);
